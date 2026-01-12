@@ -4,7 +4,7 @@ version = "0.3.0"
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.5.53", features = ["derive"] }
+clap = { version = "4.5.54", features = ["derive"] }
 ip_network = "0.4"
 thiserror = "2.0.17"
 serde = { version = "1.0.228", features = ["derive"] }
