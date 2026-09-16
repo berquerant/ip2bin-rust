@@ -24,13 +24,11 @@ jobs:
           set -e
           rustup set profile minimal
           rustup install stable
-          cargo install --force cargo-make
+          rustup component add clippy rustfmt
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      # - name: vuln
-      #   run: cargo make vuln
       - name: lint
-        run: cargo make lint
+        run: make lint
       - name: test
-        run: cargo make test
+        run: make test
       - name: build
-        run: cargo make build
+        run: make build
