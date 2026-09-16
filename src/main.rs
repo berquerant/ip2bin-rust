@@ -116,18 +116,18 @@ enum OpCommands {
     /// Left shift
     #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
     LS {
-        #[arg(value_name = "ADDRESS", num_args = 1, value_parser = Ipv4Addr::from_str)]
-        address: Ipv4Addr,
         #[arg(value_name = "BIT", num_args = 1, value_parser = clap::value_parser!(u64).range(0..=Ipv4Addr::BITS as u64))]
         bit: u64,
+        #[arg(value_name = "ADDRESS", num_args = 1, value_parser = Ipv4Addr::from_str)]
+        address: Ipv4Addr,
     },
     /// Right shift
     #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
     RS {
-        #[arg(value_name = "ADDRESS", num_args = 1, value_parser = Ipv4Addr::from_str)]
-        address: Ipv4Addr,
         #[arg(value_name = "BIT", num_args = 1, value_parser = clap::value_parser!(u64).range(0..=Ipv4Addr::BITS as u64))]
         bit: u64,
+        #[arg(value_name = "ADDRESS", num_args = 1, value_parser = Ipv4Addr::from_str)]
+        address: Ipv4Addr,
     },
 }
 
