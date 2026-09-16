@@ -1,0 +1,137 @@
+use assert_cmd::Command;
+use predicates::prelude::*;
+
+fn cmd() -> Command {
+    Command::cargo_bin("ip2bin").unwrap()
+}
+
+macro_rules! test_cli_stdout {
+    ($name:ident, $args:expr, $want:expr) => {
+        #[test]
+        fn $name() {
+            cmd().args($args).assert().success().stdout($want);
+        }
+    };
+}
+
+macro_rules! test_cli_code {
+    ($name:ident, $args:expr, $code:expr) => {
+        #[test]
+        fn $name() {
+            cmd().args($args).assert().code($code);
+        }
+    };
+}
+
+macro_rules! test_cli_failure {
+    ($name:ident, $args:expr) => {
+        #[test]
+        fn $name() {
+            cmd().args($args).assert().failure();
+        }
+    };
+}
+
+macro_rules! test_cli_contains {
+    ($name:ident, $args:expr, $($substr:expr),+ $(,)?) => {
+        #[test]
+        fn $name() {
+            cmd().args($args).assert().success()
+                $(.stdout(predicate::str::contains($substr)))+;
+        }
+    };
+}
+
+// op command
+test_cli_stdout!(test_op_ls, ["op", "ls", "8", "192.168.1.1"], "168.1.1.0\n");
+test_cli_stdout!(
+    test_op_rs,
+    ["op", "rs", "8", "192.168.1.1"],
+    "0.192.168.1\n"
+);
+test_cli_stdout!(
+    test_op_and,
+    ["op", "and", "192.168.1.10", "255.255.255.0"],
+    "192.168.1.0\n"
+);
+test_cli_stdout!(
+    test_op_or,
+    ["op", "or", "192.168.1.0", "0.0.0.255"],
+    "192.168.1.255\n"
+);
+test_cli_stdout!(
+    test_op_xor,
+    ["op", "xor", "192.168.1.1", "192.168.1.1"],
+    "0.0.0.0\n"
+);
+test_cli_stdout!(test_op_not, ["op", "not", "255.255.255.0"], "0.0.0.255\n");
+
+// mask command
+test_cli_stdout!(test_mask_28, ["mask", "28"], "255.255.255.240\n");
+test_cli_stdout!(test_mask_24, ["mask", "24"], "255.255.255.0\n");
+
+// expand command
+test_cli_stdout!(
+    test_expand_hosts,
+    ["expand", "192.168.1.0/30"],
+    "192.168.1.1\n192.168.1.2\n"
+);
+test_cli_stdout!(
+    test_expand_subnets,
+    ["expand", "192.168.1.0/24", "--prefix", "25"],
+    "192.168.1.0/25\n192.168.1.128/25\n"
+);
+
+// in command
+test_cli_code!(test_in_ok, ["in", "192.168.1.0/24", "192.168.1.10"], 0);
+test_cli_code!(test_in_ng, ["in", "192.168.1.0/24", "10.0.0.1"], 1);
+
+// conv command
+test_cli_contains!(
+    test_conv_dec,
+    ["conv", "dec", "192.168.1.4"],
+    r#""bin":"11000000101010000000000100000100""#,
+    r#""dec":"192.168.1.4""#,
+    r#""int":3232235780"#,
+    r#""abbrev":"110000001010100000000001000001""#,
+    r#""dbin":"11000000.10101000.00000001.00000100""#,
+);
+test_cli_contains!(
+    test_conv_bin,
+    ["conv", "bin", "11000000101010000000000100000100"],
+    r#""dec":"192.168.1.4""#,
+);
+test_cli_contains!(
+    test_conv_int,
+    ["conv", "int", "3232235780"],
+    r#""dec":"192.168.1.4""#,
+);
+test_cli_contains!(
+    test_conv_abbrev,
+    ["conv", "abbrev", "110000001010100000000001000001"],
+    r#""dec":"192.168.1.4""#,
+);
+test_cli_contains!(
+    test_conv_dbin,
+    ["conv", "dbin", "11000000.10101000.00000001.00000100"],
+    r#""dec":"192.168.1.4""#,
+);
+
+// inspect command
+test_cli_contains!(
+    test_inspect,
+    ["inspect", "192.168.1.0/24"],
+    r#""cidr":"192.168.1.0/24""#,
+    r#""mask":"255.255.255.0""#,
+    r#""network":"192.168.1.0""#,
+    r#""broadcast":"192.168.1.255""#,
+    r#""hosts":254"#,
+    r#""start":"192.168.1.1""#,
+    r#""end":"192.168.1.254""#,
+    r#""is_private":true"#,
+);
+
+// Invalid argument tests
+test_cli_failure!(test_invalid_mask, ["mask", "33"]);
+test_cli_failure!(test_invalid_ip, ["conv", "dec", "not.an.ip"]);
+test_cli_failure!(test_invalid_shift_order, ["op", "ls", "192.168.1.1", "8"]);
