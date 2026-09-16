@@ -25,21 +25,36 @@ enum Commands {
     /// Display mask
     ///
     /// e.g. mask 28 then 255.255.255.240
-    #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
+    #[command(
+        about,
+        verbatim_doc_comment,
+        arg_required_else_help = true,
+        visible_alias = "m"
+    )]
     Mask {
         #[arg(value_name = "BIT", num_args = 1, value_parser = clap::value_parser!(u64).range(0..=Ipv4Addr::BITS as u64))]
         bit: u64,
     },
 
     /// Inspect CIDR
-    #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
+    #[command(
+        about,
+        verbatim_doc_comment,
+        arg_required_else_help = true,
+        visible_alias = "i"
+    )]
     Inspect {
         #[arg(value_name = "CIDR", num_args = 1, value_parser = Ipv4Network::from_str)]
         cidr: Ipv4Network,
     },
 
     /// Expand CIDR
-    #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
+    #[command(
+        about,
+        verbatim_doc_comment,
+        arg_required_else_help = true,
+        visible_alias = "e"
+    )]
     Expand {
         #[arg(value_name = "CIDR", num_args = 1, value_parser = Ipv4Network::from_str)]
         cidr: Ipv4Network,
@@ -67,7 +82,12 @@ enum Commands {
     /// - int: integer, e.g. 3232235780
     /// - abbrev: abbreviated binary address, e.g. 00001010 (00001010000000000000000000000000)
     /// - dbin: dotted binary, e.g. 01111111.00000000.00000000.00000001
-    #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
+    #[command(
+        about,
+        verbatim_doc_comment,
+        arg_required_else_help = true,
+        visible_alias = "c"
+    )]
     Conv {
         #[arg(
             require_equals = true,
@@ -90,31 +110,56 @@ struct OpArgs {
 #[derive(Debug, Subcommand)]
 enum OpCommands {
     /// Bit and
-    #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
+    #[command(
+        about,
+        verbatim_doc_comment,
+        arg_required_else_help = true,
+        visible_alias = "a"
+    )]
     And {
         #[arg(value_name="ADDRESS", num_args=1.., value_parser = Ipv4Addr::from_str)]
         addresses: Vec<Ipv4Addr>,
     },
     /// Bit or
-    #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
+    #[command(
+        about,
+        verbatim_doc_comment,
+        arg_required_else_help = true,
+        visible_alias = "o"
+    )]
     Or {
         #[arg(value_name="ADDRESS", num_args=1.., value_parser = Ipv4Addr::from_str)]
         addresses: Vec<Ipv4Addr>,
     },
     /// Bit xor
-    #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
+    #[command(
+        about,
+        verbatim_doc_comment,
+        arg_required_else_help = true,
+        visible_alias = "x"
+    )]
     Xor {
         #[arg(value_name="ADDRESS", num_args=1..,value_parser = Ipv4Addr::from_str)]
         addresses: Vec<Ipv4Addr>,
     },
     /// Bit not
-    #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
+    #[command(
+        about,
+        verbatim_doc_comment,
+        arg_required_else_help = true,
+        visible_alias = "n"
+    )]
     Not {
         #[arg(value_name = "ADDRESS", num_args = 1, value_parser = Ipv4Addr::from_str)]
         address: Ipv4Addr,
     },
     /// Left shift
-    #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
+    #[command(
+        about,
+        verbatim_doc_comment,
+        arg_required_else_help = true,
+        visible_alias = "l"
+    )]
     LS {
         #[arg(value_name = "BIT", num_args = 1, value_parser = clap::value_parser!(u64).range(0..=Ipv4Addr::BITS as u64))]
         bit: u64,
@@ -122,7 +167,12 @@ enum OpCommands {
         address: Ipv4Addr,
     },
     /// Right shift
-    #[command(about, verbatim_doc_comment, arg_required_else_help = true)]
+    #[command(
+        about,
+        verbatim_doc_comment,
+        arg_required_else_help = true,
+        visible_alias = "r"
+    )]
     RS {
         #[arg(value_name = "BIT", num_args = 1, value_parser = clap::value_parser!(u64).range(0..=Ipv4Addr::BITS as u64))]
         bit: u64,
@@ -133,9 +183,13 @@ enum OpCommands {
 
 #[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Eq)]
 enum ConvCategory {
+    #[value(alias = "b")]
     Bin,
+    #[value(alias = "d")]
     Dec,
+    #[value(alias = "i")]
     Int,
+    #[value(alias = "a")]
     Abbrev,
     Dbin,
 }

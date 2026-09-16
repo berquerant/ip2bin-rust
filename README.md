@@ -2,7 +2,7 @@
 
 This is a rewrite of [ip2bin](https://github.com/berquerant/ip2bin) in Rust.
 
-``` shell
+```shell
 ❯ ip2bin
 IP address conversion utilities
 
@@ -10,11 +10,11 @@ Usage: ip2bin <COMMAND>
 
 Commands:
   op       Operations on addresses
-  mask     Display mask
-  inspect  Inspect CIDR
-  expand   Expand CIDR
+  mask     Display mask [alias: m]
+  inspect  Inspect CIDR [alias: i]
+  expand   Expand CIDR [alias: e]
   in       Determine whether CIDR contain ADDRESS
-  conv     Converts ip address format
+  conv     Converts ip address format [alias: c]
   help     Print this message or the help of the given subcommand(s)
 
 Options:

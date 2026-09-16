@@ -131,6 +131,69 @@ test_cli_contains!(
     r#""is_private":true"#,
 );
 
+// Alias tests
+test_cli_stdout!(test_alias_mask, ["m", "28"], "255.255.255.240\n");
+test_cli_stdout!(
+    test_alias_expand,
+    ["e", "192.168.1.0/30"],
+    "192.168.1.1\n192.168.1.2\n"
+);
+test_cli_contains!(
+    test_alias_inspect,
+    ["i", "192.168.1.0/24"],
+    r#""cidr":"192.168.1.0/24""#,
+);
+test_cli_contains!(
+    test_alias_conv_d,
+    ["c", "d", "192.168.1.4"],
+    r#""int":3232235780"#,
+);
+test_cli_contains!(
+    test_alias_conv_b,
+    ["c", "b", "11000000101010000000000100000100"],
+    r#""dec":"192.168.1.4""#,
+);
+test_cli_contains!(
+    test_alias_conv_i,
+    ["c", "i", "3232235780"],
+    r#""dec":"192.168.1.4""#,
+);
+test_cli_contains!(
+    test_alias_conv_a,
+    ["c", "a", "110000001010100000000001000001"],
+    r#""dec":"192.168.1.4""#,
+);
+test_cli_stdout!(
+    test_alias_op_and,
+    ["op", "a", "192.168.1.10", "255.255.255.0"],
+    "192.168.1.0\n"
+);
+test_cli_stdout!(
+    test_alias_op_or,
+    ["op", "o", "192.168.1.0", "0.0.0.255"],
+    "192.168.1.255\n"
+);
+test_cli_stdout!(
+    test_alias_op_xor,
+    ["op", "x", "192.168.1.1", "192.168.1.1"],
+    "0.0.0.0\n"
+);
+test_cli_stdout!(
+    test_alias_op_not,
+    ["op", "n", "255.255.255.0"],
+    "0.0.0.255\n"
+);
+test_cli_stdout!(
+    test_alias_op_ls,
+    ["op", "l", "8", "192.168.1.1"],
+    "168.1.1.0\n"
+);
+test_cli_stdout!(
+    test_alias_op_rs,
+    ["op", "r", "8", "192.168.1.1"],
+    "0.192.168.1\n"
+);
+
 // Invalid argument tests
 test_cli_failure!(test_invalid_mask, ["mask", "33"]);
 test_cli_failure!(test_invalid_ip, ["conv", "dec", "not.an.ip"]);
