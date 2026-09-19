@@ -45,7 +45,10 @@ mod tests {
 
     #[test]
     fn test_bits_address() {
-        assert_eq!(bits_address(24).unwrap(), "255.255.255.0".parse::<Ipv4Addr>().unwrap());
+        assert_eq!(
+            bits_address(24).unwrap(),
+            "255.255.255.0".parse::<Ipv4Addr>().unwrap()
+        );
         assert_eq!(bits_address(33), Err(MaskError::InvalidBit(33)));
     }
 }

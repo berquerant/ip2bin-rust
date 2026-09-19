@@ -90,20 +90,29 @@ mod tests {
     fn test_op_and() {
         let a = "192.168.1.10".parse().unwrap();
         let b = "255.255.255.0".parse().unwrap();
-        assert_eq!(op_and(&[a, b]).unwrap(), "192.168.1.0".parse::<Ipv4Addr>().unwrap());
+        assert_eq!(
+            op_and(&[a, b]).unwrap(),
+            "192.168.1.0".parse::<Ipv4Addr>().unwrap()
+        );
     }
 
     #[test]
     fn test_op_or() {
         let a = "192.168.1.0".parse().unwrap();
         let b = "0.0.0.255".parse().unwrap();
-        assert_eq!(op_or(&[a, b]).unwrap(), "192.168.1.255".parse::<Ipv4Addr>().unwrap());
+        assert_eq!(
+            op_or(&[a, b]).unwrap(),
+            "192.168.1.255".parse::<Ipv4Addr>().unwrap()
+        );
     }
 
     #[test]
     fn test_op_xor() {
         let a = "192.168.1.1".parse().unwrap();
-        assert_eq!(op_xor(&[a, a]).unwrap(), "0.0.0.0".parse::<Ipv4Addr>().unwrap());
+        assert_eq!(
+            op_xor(&[a, a]).unwrap(),
+            "0.0.0.0".parse::<Ipv4Addr>().unwrap()
+        );
     }
 
     #[test]
@@ -115,14 +124,20 @@ mod tests {
     #[test]
     fn test_op_ls() {
         let a = "192.168.1.1".parse().unwrap();
-        assert_eq!(op_ls(a, 8).unwrap(), "168.1.1.0".parse::<Ipv4Addr>().unwrap());
+        assert_eq!(
+            op_ls(a, 8).unwrap(),
+            "168.1.1.0".parse::<Ipv4Addr>().unwrap()
+        );
         assert_eq!(op_ls(a, 33), Err(OpError::InvalidShiftBit(33)));
     }
 
     #[test]
     fn test_op_rs() {
         let a = "192.168.1.1".parse().unwrap();
-        assert_eq!(op_rs(a, 8).unwrap(), "0.192.168.1".parse::<Ipv4Addr>().unwrap());
+        assert_eq!(
+            op_rs(a, 8).unwrap(),
+            "0.192.168.1".parse::<Ipv4Addr>().unwrap()
+        );
         assert_eq!(op_rs(a, 33), Err(OpError::InvalidShiftBit(33)));
     }
 }

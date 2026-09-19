@@ -224,7 +224,13 @@ fn test_mcp_initialize_and_call() {
     let output = child.wait_with_output().expect("wait on child");
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    assert!(stdout.contains(r#""name":"ip2bin""#) || stdout.contains(r#""serverInfo""#), "stdout: {stdout}");
+    assert!(
+        stdout.contains(r#""name":"ip2bin""#) || stdout.contains(r#""serverInfo""#),
+        "stdout: {stdout}"
+    );
     assert!(stdout.contains(r#""name":"mask""#), "stdout: {stdout}");
-    assert!(stdout.contains(r#""mask":"255.255.255.0""#), "stdout: {stdout}");
+    assert!(
+        stdout.contains(r#""mask":"255.255.255.0""#),
+        "stdout: {stdout}"
+    );
 }

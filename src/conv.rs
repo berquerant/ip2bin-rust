@@ -8,7 +8,9 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 use thiserror::Error;
 
-#[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+#[derive(
+    ValueEnum, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum ConvCategory {
     #[default]
@@ -141,11 +143,26 @@ mod tests {
     #[test]
     fn test_parse_target() {
         let ip = Ipv4Addr::new(192, 168, 1, 4);
-        assert_eq!(ConvCategory::Bin.parse_target("11000000101010000000000100000100").unwrap(), ip);
+        assert_eq!(
+            ConvCategory::Bin
+                .parse_target("11000000101010000000000100000100")
+                .unwrap(),
+            ip
+        );
         assert_eq!(ConvCategory::Dec.parse_target("192.168.1.4").unwrap(), ip);
         assert_eq!(ConvCategory::Int.parse_target("3232235780").unwrap(), ip);
-        assert_eq!(ConvCategory::Abbrev.parse_target("110000001010100000000001000001").unwrap(), ip);
-        assert_eq!(ConvCategory::Dbin.parse_target("11000000.10101000.00000001.00000100").unwrap(), ip);
+        assert_eq!(
+            ConvCategory::Abbrev
+                .parse_target("110000001010100000000001000001")
+                .unwrap(),
+            ip
+        );
+        assert_eq!(
+            ConvCategory::Dbin
+                .parse_target("11000000.10101000.00000001.00000100")
+                .unwrap(),
+            ip
+        );
     }
 
     #[test]

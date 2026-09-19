@@ -16,6 +16,9 @@ impl Bin {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
     pub fn pad_start(&mut self, size: usize, val: bool) {
         if self.len() >= size {
             return;
