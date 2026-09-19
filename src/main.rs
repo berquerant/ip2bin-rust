@@ -1,9 +1,9 @@
-use clap::{self, Args, Parser, Subcommand, ValueEnum};
-use ip2bin::conv;
-use ip2bin::inspect;
-use ip2bin::mask;
+use clap::{self, Args, Parser, Subcommand};
+use ip2bin::conv::{ConvCategory, ConvResult};
+use ip2bin::inspect::NetworkInfo;
+use ip2bin::mask::bits_address;
 use ip2bin::mcp;
-use ip2bin::parse;
+use ip2bin::op;
 use ip_network::Ipv4Network;
 use std::net::Ipv4Addr;
 use std::process;
@@ -186,28 +186,6 @@ enum OpCommands {
     },
 }
 
-#[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Eq)]
-enum ConvCategory {
-    #[value(alias = "b")]
-    Bin,
-    #[value(alias = "d")]
-    Dec,
-    #[value(alias = "i")]
-    Int,
-    #[value(alias = "a")]
-    Abbrev,
-    Dbin,
-}
-
-impl std::fmt::Display for ConvCategory {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.to_possible_value()
-            .expect("no values are skipped")
-            .get_name()
-            .fmt(f)
-    }
-}
-
 #[tokio::main]
 async fn main() {
     let args = Cli::parse();
@@ -221,14 +199,12 @@ async fn main() {
         }
         Commands::Expand { cidr, prefix } => match prefix {
             None => {
-                let it = cidr.hosts();
-                for x in it {
+                for x in cidr.hosts() {
                     println!("{}", x);
                 }
             }
             Some(p) => {
-                let it = cidr.subnets_with_prefix(p as u8);
-                for x in it {
+                for x in cidr.subnets_with_prefix(p as u8) {
                     println!("{}", x);
                 }
             }
@@ -239,78 +215,43 @@ async fn main() {
             }
         }
         Commands::Inspect { cidr } => {
-            let r = inspect::NetworkInfo::from(cidr);
+            let r = NetworkInfo::from(cidr);
             let j = serde_json::to_string(&r).expect("jsonify NetworkInfo");
             println!("{}", j);
         }
         Commands::Conv { category, target } => {
-            let a = match category {
-                ConvCategory::Bin => {
-                    let x = parse::Bin::from(target);
-                    Ipv4Addr::try_from(x).expect("unsigned int 32")
-                }
-                ConvCategory::Dec => Ipv4Addr::from_str(&target).expect("ipv4 string"),
-                ConvCategory::Int => {
-                    let x: u32 = target.parse().expect("unsigned int 32");
-                    Ipv4Addr::from(x)
-                }
-                ConvCategory::Abbrev => {
-                    let mut x = parse::Bin::from(target);
-                    x.pad_end(Ipv4Addr::BITS as usize, false);
-                    Ipv4Addr::try_from(x).expect("unsigned int 32")
-                }
-                ConvCategory::Dbin => {
-                    let s: String = target.chars().filter(|x| *x == '0' || *x == '1').collect();
-                    let x = parse::Bin::from(s);
-                    Ipv4Addr::try_from(x).expect("unsigned int 32")
-                }
-            };
-
-            let r = conv::ConvResult::from(a);
+            let a = category.parse_target(&target).expect("valid ip representation");
+            let r = ConvResult::from(a);
             let j = serde_json::to_string(&r).expect("jsonify ConvResult");
             println!("{}", j);
         }
         Commands::Mask { bit } => {
-            let a = mask::bits_address(bit as u8);
+            let a = bits_address(bit as u8);
             println!("{}", a);
         }
         Commands::Op(op_args) => match op_args.command {
             OpCommands::And { addresses } => {
-                let init = Ipv4Addr::from(u32::MAX);
-                let a = addresses.iter().fold(init, |acc, x| acc & x);
+                let a = op::op_and(&addresses);
                 println!("{}", a);
             }
             OpCommands::Or { addresses } => {
-                let init = Ipv4Addr::from(0);
-                let a = addresses.iter().fold(init, |acc, x| acc | x);
+                let a = op::op_or(&addresses);
                 println!("{}", a);
             }
             OpCommands::Xor { addresses } => {
-                let a = addresses
-                    .into_iter()
-                    .reduce(|acc, x| {
-                        let left = u32::from(acc);
-                        let right = u32::from(x);
-                        let r = left ^ right;
-                        Ipv4Addr::from(r)
-                    })
-                    .unwrap();
+                let a = op::op_xor(&addresses).expect("addresses not empty");
                 println!("{}", a);
             }
             OpCommands::Not { address } => {
-                let a = !address;
+                let a = op::op_not(address);
                 println!("{}", a);
             }
             OpCommands::LS { address, bit } => {
-                let b = u32::from(address);
-                let c = b << bit;
-                let a = Ipv4Addr::from(c);
+                let a = op::op_ls(address, bit as u8);
                 println!("{}", a);
             }
             OpCommands::RS { address, bit } => {
-                let b = u32::from(address);
-                let c = b >> bit;
-                let a = Ipv4Addr::from(c);
+                let a = op::op_rs(address, bit as u8);
                 println!("{}", a);
             }
         },

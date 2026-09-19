@@ -1,7 +1,7 @@
-use crate::conv::ConvResult;
+use crate::conv::{ConvCategory, ConvResult};
 use crate::inspect::NetworkInfo;
 use crate::mask::bits_address;
-use crate::parse::Bin;
+use crate::op;
 use ip_network::Ipv4Network;
 use rmcp::{
     handler::server::wrapper::{Json, Parameters},
@@ -47,20 +47,9 @@ pub struct InParams {
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum ConvCategoryParam {
-    #[default]
-    Bin,
-    Dec,
-    Int,
-    Abbrev,
-    Dbin,
-}
-
-#[derive(Debug, Deserialize, JsonSchema, Default)]
 pub struct ConvParams {
     #[schemars(description = "Format category of input: 'bin', 'dec', 'int', 'abbrev', or 'dbin'")]
-    pub category: ConvCategoryParam,
+    pub category: ConvCategory,
     #[schemars(description = "Target representation to convert")]
     pub target: String,
 }
@@ -105,6 +94,20 @@ pub struct AddressResult {
     pub address: String,
 }
 
+fn parse_addrs(addresses: &[String]) -> Result<Vec<Ipv4Addr>, ErrorData> {
+    if addresses.is_empty() {
+        return Err(ErrorData::invalid_params("addresses cannot be empty", None));
+    }
+    addresses
+        .iter()
+        .map(|a| {
+            Ipv4Addr::from_str(a).map_err(|e| {
+                ErrorData::invalid_params(format!("Invalid address '{a}': {e}"), None)
+            })
+        })
+        .collect()
+}
+
 #[tool_router(server_handler)]
 impl Ip2binMcpServer {
     #[tool(description = "Get subnet mask address for a given prefix bit length")]
@@ -122,8 +125,7 @@ impl Ip2binMcpServer {
     fn inspect(&self, Parameters(params): Parameters<InspectParams>) -> Result<Json<NetworkInfo>, ErrorData> {
         let cidr = Ipv4Network::from_str(&params.cidr)
             .map_err(|e| ErrorData::invalid_params(format!("Invalid CIDR: {e}"), None))?;
-        let info = NetworkInfo::from(cidr);
-        Ok(Json(info))
+        Ok(Json(NetworkInfo::from(cidr)))
     }
 
     #[tool(description = "Expand an IPv4 CIDR block into host addresses or subnets")]
@@ -158,45 +160,18 @@ impl Ip2binMcpServer {
 
     #[tool(description = "Convert an IPv4 address between binary, decimal, integer, abbreviated binary, and dotted binary representations")]
     fn conv(&self, Parameters(params): Parameters<ConvParams>) -> Result<Json<ConvResult>, ErrorData> {
-        let addr = match params.category {
-            ConvCategoryParam::Bin => {
-                let x = Bin::from(params.target);
-                Ipv4Addr::try_from(x).map_err(|e| ErrorData::invalid_params(format!("Invalid binary: {e:?}"), None))?
-            }
-            ConvCategoryParam::Dec => {
-                Ipv4Addr::from_str(&params.target).map_err(|e| ErrorData::invalid_params(format!("Invalid decimal IP: {e}"), None))?
-            }
-            ConvCategoryParam::Int => {
-                let x: u32 = params.target.parse().map_err(|e| ErrorData::invalid_params(format!("Invalid integer: {e}"), None))?;
-                Ipv4Addr::from(x)
-            }
-            ConvCategoryParam::Abbrev => {
-                let mut x = Bin::from(params.target);
-                x.pad_end(Ipv4Addr::BITS as usize, false);
-                Ipv4Addr::try_from(x).map_err(|e| ErrorData::invalid_params(format!("Invalid binary: {e:?}"), None))?
-            }
-            ConvCategoryParam::Dbin => {
-                let s: String = params.target.chars().filter(|x| *x == '0' || *x == '1').collect();
-                let x = Bin::from(s);
-                Ipv4Addr::try_from(x).map_err(|e| ErrorData::invalid_params(format!("Invalid dotted binary: {e:?}"), None))?
-            }
-        };
+        let addr = params
+            .category
+            .parse_target(&params.target)
+            .map_err(|e| ErrorData::invalid_params(format!("Conversion error: {e}"), None))?;
 
-        let result = ConvResult::from(addr);
-        Ok(Json(result))
+        Ok(Json(ConvResult::from(addr)))
     }
 
     #[tool(description = "Bitwise AND operation across multiple IPv4 addresses")]
     fn op_and(&self, Parameters(params): Parameters<OpBitwiseParams>) -> Result<Json<AddressResult>, ErrorData> {
-        if params.addresses.is_empty() {
-            return Err(ErrorData::invalid_params("addresses cannot be empty", None));
-        }
-        let mut addrs = Vec::new();
-        for a in params.addresses {
-            addrs.push(Ipv4Addr::from_str(&a).map_err(|e| ErrorData::invalid_params(format!("Invalid address '{a}': {e}"), None))?);
-        }
-        let init = Ipv4Addr::from(u32::MAX);
-        let res = addrs.iter().fold(init, |acc, x| acc & x);
+        let addrs = parse_addrs(&params.addresses)?;
+        let res = op::op_and(&addrs);
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))
@@ -204,15 +179,8 @@ impl Ip2binMcpServer {
 
     #[tool(description = "Bitwise OR operation across multiple IPv4 addresses")]
     fn op_or(&self, Parameters(params): Parameters<OpBitwiseParams>) -> Result<Json<AddressResult>, ErrorData> {
-        if params.addresses.is_empty() {
-            return Err(ErrorData::invalid_params("addresses cannot be empty", None));
-        }
-        let mut addrs = Vec::new();
-        for a in params.addresses {
-            addrs.push(Ipv4Addr::from_str(&a).map_err(|e| ErrorData::invalid_params(format!("Invalid address '{a}': {e}"), None))?);
-        }
-        let init = Ipv4Addr::from(0);
-        let res = addrs.iter().fold(init, |acc, x| acc | x);
+        let addrs = parse_addrs(&params.addresses)?;
+        let res = op::op_or(&addrs);
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))
@@ -220,21 +188,9 @@ impl Ip2binMcpServer {
 
     #[tool(description = "Bitwise XOR operation across multiple IPv4 addresses")]
     fn op_xor(&self, Parameters(params): Parameters<OpBitwiseParams>) -> Result<Json<AddressResult>, ErrorData> {
-        if params.addresses.is_empty() {
-            return Err(ErrorData::invalid_params("addresses cannot be empty", None));
-        }
-        let mut addrs = Vec::new();
-        for a in params.addresses {
-            addrs.push(Ipv4Addr::from_str(&a).map_err(|e| ErrorData::invalid_params(format!("Invalid address '{a}': {e}"), None))?);
-        }
-        let res = addrs
-            .into_iter()
-            .reduce(|acc, x| {
-                let left = u32::from(acc);
-                let right = u32::from(x);
-                Ipv4Addr::from(left ^ right)
-            })
-            .unwrap();
+        let addrs = parse_addrs(&params.addresses)?;
+        let res = op::op_xor(&addrs)
+            .ok_or_else(|| ErrorData::invalid_params("addresses cannot be empty", None))?;
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))
@@ -244,7 +200,7 @@ impl Ip2binMcpServer {
     fn op_not(&self, Parameters(params): Parameters<OpNotParams>) -> Result<Json<AddressResult>, ErrorData> {
         let addr = Ipv4Addr::from_str(&params.address)
             .map_err(|e| ErrorData::invalid_params(format!("Invalid address: {e}"), None))?;
-        let res = !addr;
+        let res = op::op_not(addr);
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))
@@ -257,9 +213,7 @@ impl Ip2binMcpServer {
         }
         let addr = Ipv4Addr::from_str(&params.address)
             .map_err(|e| ErrorData::invalid_params(format!("Invalid address: {e}"), None))?;
-        let b = u32::from(addr);
-        let c = b << params.bit;
-        let res = Ipv4Addr::from(c);
+        let res = op::op_ls(addr, params.bit);
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))
@@ -272,9 +226,7 @@ impl Ip2binMcpServer {
         }
         let addr = Ipv4Addr::from_str(&params.address)
             .map_err(|e| ErrorData::invalid_params(format!("Invalid address: {e}"), None))?;
-        let b = u32::from(addr);
-        let c = b >> params.bit;
-        let res = Ipv4Addr::from(c);
+        let res = op::op_rs(addr, params.bit);
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))

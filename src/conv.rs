@@ -1,8 +1,72 @@
-use crate::parse::Bin;
+use crate::parse::{Bin, ParseError};
+use clap::ValueEnum;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
-use std::net::Ipv4Addr;
+use std::net::{AddrParseError, Ipv4Addr};
+use std::num::ParseIntError;
+use std::str::FromStr;
+use thiserror::Error;
+
+#[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ConvCategory {
+    #[default]
+    #[value(alias = "b")]
+    Bin,
+    #[value(alias = "d")]
+    Dec,
+    #[value(alias = "i")]
+    Int,
+    #[value(alias = "a")]
+    Abbrev,
+    Dbin,
+}
+
+impl std::fmt::Display for ConvCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
+    }
+}
+
+#[derive(Debug, Error, PartialEq)]
+pub enum ConvError {
+    #[error("binary parse error: {0}")]
+    Parse(#[from] ParseError),
+    #[error("decimal address parse error: {0}")]
+    Addr(#[from] AddrParseError),
+    #[error("integer parse error: {0}")]
+    Int(#[from] ParseIntError),
+}
+
+impl ConvCategory {
+    pub fn parse_target(&self, target: &str) -> Result<Ipv4Addr, ConvError> {
+        match self {
+            ConvCategory::Bin => {
+                let x = Bin::from(target.to_string());
+                Ok(Ipv4Addr::try_from(x)?)
+            }
+            ConvCategory::Dec => Ok(Ipv4Addr::from_str(target)?),
+            ConvCategory::Int => {
+                let x: u32 = target.parse()?;
+                Ok(Ipv4Addr::from(x))
+            }
+            ConvCategory::Abbrev => {
+                let mut x = Bin::from(target.to_string());
+                x.pad_end(Ipv4Addr::BITS as usize, false);
+                Ok(Ipv4Addr::try_from(x)?)
+            }
+            ConvCategory::Dbin => {
+                let s: String = target.chars().filter(|&x| x == '0' || x == '1').collect();
+                let x = Bin::from(s);
+                Ok(Ipv4Addr::try_from(x)?)
+            }
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 pub struct ConvResult {
@@ -67,4 +131,14 @@ mod tests {
             dbin: "11000000.10101000.00000001.00000100".to_string(),
         }
     );
+
+    #[test]
+    fn test_parse_target() {
+        let ip = Ipv4Addr::new(192, 168, 1, 4);
+        assert_eq!(ConvCategory::Bin.parse_target("11000000101010000000000100000100").unwrap(), ip);
+        assert_eq!(ConvCategory::Dec.parse_target("192.168.1.4").unwrap(), ip);
+        assert_eq!(ConvCategory::Int.parse_target("3232235780").unwrap(), ip);
+        assert_eq!(ConvCategory::Abbrev.parse_target("110000001010100000000001000001").unwrap(), ip);
+        assert_eq!(ConvCategory::Dbin.parse_target("11000000.10101000.00000001.00000100").unwrap(), ip);
+    }
 }
