@@ -1,4 +1,5 @@
-use crate::conv::{ConvCategory, ConvResult};
+use crate::conv::{self, ConvCategory, ConvResult};
+use crate::expand;
 use crate::inspect::NetworkInfo;
 use crate::mask::bits_address;
 use crate::op;
@@ -94,28 +95,12 @@ pub struct AddressResult {
     pub address: String,
 }
 
-fn parse_addrs(addresses: &[String]) -> Result<Vec<Ipv4Addr>, ErrorData> {
-    if addresses.is_empty() {
-        return Err(ErrorData::invalid_params("addresses cannot be empty", None));
-    }
-    addresses
-        .iter()
-        .map(|a| {
-            Ipv4Addr::from_str(a).map_err(|e| {
-                ErrorData::invalid_params(format!("Invalid address '{a}': {e}"), None)
-            })
-        })
-        .collect()
-}
-
 #[tool_router(server_handler)]
 impl Ip2binMcpServer {
     #[tool(description = "Get subnet mask address for a given prefix bit length")]
     fn mask(&self, Parameters(params): Parameters<MaskParams>) -> Result<Json<MaskResult>, ErrorData> {
-        if params.bit > 32 {
-            return Err(ErrorData::invalid_params("bit must be between 0 and 32", None));
-        }
-        let addr = bits_address(params.bit);
+        let addr = bits_address(params.bit)
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
         Ok(Json(MaskResult {
             mask: addr.to_string(),
         }))
@@ -132,17 +117,8 @@ impl Ip2binMcpServer {
     fn expand(&self, Parameters(params): Parameters<ExpandParams>) -> Result<Json<ExpandResult>, ErrorData> {
         let cidr = Ipv4Network::from_str(&params.cidr)
             .map_err(|e| ErrorData::invalid_params(format!("Invalid CIDR: {e}"), None))?;
-
-        let items: Vec<String> = match params.prefix {
-            None => cidr.hosts().map(|x| x.to_string()).collect(),
-            Some(p) => {
-                if p > 32 {
-                    return Err(ErrorData::invalid_params("prefix must be between 0 and 32", None));
-                }
-                cidr.subnets_with_prefix(p).map(|x| x.to_string()).collect()
-            }
-        };
-
+        let items = expand::expand(cidr, params.prefix)
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
         Ok(Json(ExpandResult { items }))
     }
 
@@ -160,18 +136,17 @@ impl Ip2binMcpServer {
 
     #[tool(description = "Convert an IPv4 address between binary, decimal, integer, abbreviated binary, and dotted binary representations")]
     fn conv(&self, Parameters(params): Parameters<ConvParams>) -> Result<Json<ConvResult>, ErrorData> {
-        let addr = params
-            .category
-            .parse_target(&params.target)
+        let res = conv::conv(params.category, &params.target)
             .map_err(|e| ErrorData::invalid_params(format!("Conversion error: {e}"), None))?;
-
-        Ok(Json(ConvResult::from(addr)))
+        Ok(Json(res))
     }
 
     #[tool(description = "Bitwise AND operation across multiple IPv4 addresses")]
     fn op_and(&self, Parameters(params): Parameters<OpBitwiseParams>) -> Result<Json<AddressResult>, ErrorData> {
-        let addrs = parse_addrs(&params.addresses)?;
-        let res = op::op_and(&addrs);
+        let addrs = op::parse_addrs(&params.addresses)
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
+        let res = op::op_and(&addrs)
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))
@@ -179,8 +154,10 @@ impl Ip2binMcpServer {
 
     #[tool(description = "Bitwise OR operation across multiple IPv4 addresses")]
     fn op_or(&self, Parameters(params): Parameters<OpBitwiseParams>) -> Result<Json<AddressResult>, ErrorData> {
-        let addrs = parse_addrs(&params.addresses)?;
-        let res = op::op_or(&addrs);
+        let addrs = op::parse_addrs(&params.addresses)
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
+        let res = op::op_or(&addrs)
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))
@@ -188,9 +165,10 @@ impl Ip2binMcpServer {
 
     #[tool(description = "Bitwise XOR operation across multiple IPv4 addresses")]
     fn op_xor(&self, Parameters(params): Parameters<OpBitwiseParams>) -> Result<Json<AddressResult>, ErrorData> {
-        let addrs = parse_addrs(&params.addresses)?;
+        let addrs = op::parse_addrs(&params.addresses)
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
         let res = op::op_xor(&addrs)
-            .ok_or_else(|| ErrorData::invalid_params("addresses cannot be empty", None))?;
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))
@@ -208,12 +186,10 @@ impl Ip2binMcpServer {
 
     #[tool(description = "Bitwise left-shift operation on an IPv4 address")]
     fn op_ls(&self, Parameters(params): Parameters<OpShiftParams>) -> Result<Json<AddressResult>, ErrorData> {
-        if params.bit > 32 {
-            return Err(ErrorData::invalid_params("bit must be between 0 and 32", None));
-        }
         let addr = Ipv4Addr::from_str(&params.address)
             .map_err(|e| ErrorData::invalid_params(format!("Invalid address: {e}"), None))?;
-        let res = op::op_ls(addr, params.bit);
+        let res = op::op_ls(addr, params.bit)
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))
@@ -221,12 +197,10 @@ impl Ip2binMcpServer {
 
     #[tool(description = "Bitwise right-shift operation on an IPv4 address")]
     fn op_rs(&self, Parameters(params): Parameters<OpShiftParams>) -> Result<Json<AddressResult>, ErrorData> {
-        if params.bit > 32 {
-            return Err(ErrorData::invalid_params("bit must be between 0 and 32", None));
-        }
         let addr = Ipv4Addr::from_str(&params.address)
             .map_err(|e| ErrorData::invalid_params(format!("Invalid address: {e}"), None))?;
-        let res = op::op_rs(addr, params.bit);
+        let res = op::op_rs(addr, params.bit)
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
         Ok(Json(AddressResult {
             address: res.to_string(),
         }))

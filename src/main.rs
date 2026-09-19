@@ -1,5 +1,6 @@
 use clap::{self, Args, Parser, Subcommand};
-use ip2bin::conv::{ConvCategory, ConvResult};
+use ip2bin::conv::{self, ConvCategory};
+use ip2bin::expand;
 use ip2bin::inspect::NetworkInfo;
 use ip2bin::mask::bits_address;
 use ip2bin::mcp;
@@ -197,18 +198,12 @@ async fn main() {
                 process::exit(1);
             }
         }
-        Commands::Expand { cidr, prefix } => match prefix {
-            None => {
-                for x in cidr.hosts() {
-                    println!("{}", x);
-                }
+        Commands::Expand { cidr, prefix } => {
+            let items = expand::expand(cidr, prefix.map(|p| p as u8)).expect("expand CIDR");
+            for x in items {
+                println!("{}", x);
             }
-            Some(p) => {
-                for x in cidr.subnets_with_prefix(p as u8) {
-                    println!("{}", x);
-                }
-            }
-        },
+        }
         Commands::In { cidr, address } => {
             if !cidr.contains(address) {
                 process::exit(1);
@@ -220,26 +215,25 @@ async fn main() {
             println!("{}", j);
         }
         Commands::Conv { category, target } => {
-            let a = category.parse_target(&target).expect("valid ip representation");
-            let r = ConvResult::from(a);
+            let r = conv::conv(category, &target).expect("valid conversion");
             let j = serde_json::to_string(&r).expect("jsonify ConvResult");
             println!("{}", j);
         }
         Commands::Mask { bit } => {
-            let a = bits_address(bit as u8);
+            let a = bits_address(bit as u8).expect("valid bit");
             println!("{}", a);
         }
         Commands::Op(op_args) => match op_args.command {
             OpCommands::And { addresses } => {
-                let a = op::op_and(&addresses);
+                let a = op::op_and(&addresses).expect("valid op_and");
                 println!("{}", a);
             }
             OpCommands::Or { addresses } => {
-                let a = op::op_or(&addresses);
+                let a = op::op_or(&addresses).expect("valid op_or");
                 println!("{}", a);
             }
             OpCommands::Xor { addresses } => {
-                let a = op::op_xor(&addresses).expect("addresses not empty");
+                let a = op::op_xor(&addresses).expect("valid op_xor");
                 println!("{}", a);
             }
             OpCommands::Not { address } => {
@@ -247,11 +241,11 @@ async fn main() {
                 println!("{}", a);
             }
             OpCommands::LS { address, bit } => {
-                let a = op::op_ls(address, bit as u8);
+                let a = op::op_ls(address, bit as u8).expect("valid op_ls");
                 println!("{}", a);
             }
             OpCommands::RS { address, bit } => {
-                let a = op::op_rs(address, bit as u8);
+                let a = op::op_rs(address, bit as u8).expect("valid op_rs");
                 println!("{}", a);
             }
         },

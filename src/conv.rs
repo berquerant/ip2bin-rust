@@ -68,6 +68,12 @@ impl ConvCategory {
     }
 }
 
+/// Helper function to perform format conversion in one call.
+pub fn conv(category: ConvCategory, target: &str) -> Result<ConvResult, ConvError> {
+    let addr = category.parse_target(target)?;
+    Ok(ConvResult::from(addr))
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 pub struct ConvResult {
     pub bin: String,
@@ -140,5 +146,12 @@ mod tests {
         assert_eq!(ConvCategory::Int.parse_target("3232235780").unwrap(), ip);
         assert_eq!(ConvCategory::Abbrev.parse_target("110000001010100000000001000001").unwrap(), ip);
         assert_eq!(ConvCategory::Dbin.parse_target("11000000.10101000.00000001.00000100").unwrap(), ip);
+    }
+
+    #[test]
+    fn test_conv_fn() {
+        let res = conv(ConvCategory::Dec, "192.168.1.4").unwrap();
+        assert_eq!(res.dec, "192.168.1.4");
+        assert_eq!(res.int, 3232235780);
     }
 }
