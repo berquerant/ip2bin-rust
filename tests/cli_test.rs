@@ -1,5 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::io::Write;
 
 fn cmd() -> Command {
     Command::cargo_bin("ip2bin").unwrap()
@@ -198,3 +199,32 @@ test_cli_stdout!(
 test_cli_failure!(test_invalid_mask, ["mask", "33"]);
 test_cli_failure!(test_invalid_ip, ["conv", "dec", "not.an.ip"]);
 test_cli_failure!(test_invalid_shift_order, ["op", "ls", "192.168.1.1", "8"]);
+
+#[test]
+fn test_mcp_initialize_and_call() {
+    let init_req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test-client","version":"1.0.0"}}}"#;
+    let initialized_notif = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+    let list_tools_req = r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#;
+    let call_mask_req = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"mask","arguments":{"bit":24}}}"#;
+
+    let input = format!("{init_req}\n{initialized_notif}\n{list_tools_req}\n{call_mask_req}\n");
+
+    let mut child = std::process::Command::new(assert_cmd::cargo::cargo_bin("ip2bin"))
+        .arg("mcp")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn ip2bin mcp");
+
+    {
+        let stdin = child.stdin.as_mut().expect("stdin");
+        stdin.write_all(input.as_bytes()).expect("write to stdin");
+    }
+
+    let output = child.wait_with_output().expect("wait on child");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(stdout.contains(r#""name":"ip2bin""#) || stdout.contains(r#""serverInfo""#), "stdout: {stdout}");
+    assert!(stdout.contains(r#""name":"mask""#), "stdout: {stdout}");
+    assert!(stdout.contains(r#""mask":"255.255.255.0""#), "stdout: {stdout}");
+}

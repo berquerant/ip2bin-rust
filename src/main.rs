@@ -1,8 +1,9 @@
-mod conv;
-mod inspect;
-mod mask;
-mod parse;
 use clap::{self, Args, Parser, Subcommand, ValueEnum};
+use ip2bin::conv;
+use ip2bin::inspect;
+use ip2bin::mask;
+use ip2bin::mcp;
+use ip2bin::parse;
 use ip_network::Ipv4Network;
 use std::net::Ipv4Addr;
 use std::process;
@@ -99,6 +100,10 @@ enum Commands {
         #[arg(value_name = "TARGET", num_args = 1)]
         target: String,
     },
+
+    /// Start Model Context Protocol (MCP) server
+    #[command(about)]
+    Mcp,
 }
 
 #[derive(Debug, Args)]
@@ -203,10 +208,17 @@ impl std::fmt::Display for ConvCategory {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = Cli::parse();
 
     match args.command {
+        Commands::Mcp => {
+            if let Err(e) = mcp::run_mcp_server().await {
+                eprintln!("MCP server error: {}", e);
+                process::exit(1);
+            }
+        }
         Commands::Expand { cidr, prefix } => match prefix {
             None => {
                 let it = cidr.hosts();

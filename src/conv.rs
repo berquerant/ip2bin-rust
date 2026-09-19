@@ -1,15 +1,16 @@
 use crate::parse::Bin;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 use std::net::Ipv4Addr;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 pub struct ConvResult {
-    bin: String,
-    dec: String,
-    int: u32,
-    abbrev: String,
-    dbin: String,
+    pub bin: String,
+    pub dec: String,
+    pub int: u32,
+    pub abbrev: String,
+    pub dbin: String,
 }
 
 impl From<Ipv4Addr> for ConvResult {
