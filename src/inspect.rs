@@ -1,28 +1,29 @@
 use ip_network::Ipv4Network;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 pub struct NetworkInfo {
-    cidr: String,
-    mask: String,
-    network: String,
-    hosts: usize,
-    start: Option<String>,
-    end: Option<String>,
-    broadcast: String,
-    is_local_identification: bool,
-    is_unspecified: bool,
-    is_loopback: bool,
-    is_broadcast: bool,
-    is_private: bool,
-    is_ietf_protocol_assignments: bool,
-    is_shared_address_space: bool,
-    is_link_local: bool,
-    is_multicast: bool,
-    is_benchmarking: bool,
-    is_reserved: bool,
-    is_documentation: bool,
-    is_global: bool,
+    pub cidr: String,
+    pub mask: String,
+    pub network: String,
+    pub hosts: usize,
+    pub start: Option<String>,
+    pub end: Option<String>,
+    pub broadcast: String,
+    pub is_local_identification: bool,
+    pub is_unspecified: bool,
+    pub is_loopback: bool,
+    pub is_broadcast: bool,
+    pub is_private: bool,
+    pub is_ietf_protocol_assignments: bool,
+    pub is_shared_address_space: bool,
+    pub is_link_local: bool,
+    pub is_multicast: bool,
+    pub is_benchmarking: bool,
+    pub is_reserved: bool,
+    pub is_documentation: bool,
+    pub is_global: bool,
 }
 
 impl From<Ipv4Network> for NetworkInfo {
